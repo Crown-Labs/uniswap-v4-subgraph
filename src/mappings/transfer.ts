@@ -1,5 +1,7 @@
+import { log } from '@graphprotocol/graph-ts'
+
 import { Transfer as TransferEvent } from '../types/PositionManager/PositionManager'
-import { Position, Transfer } from '../types/schema'
+import { LiquidityPosition, Position, Transfer } from '../types/schema'
 import { loadTransaction } from '../utils'
 import { eventId, positionId } from '../utils/id'
 
@@ -20,6 +22,18 @@ export function handleTransferHelper(event: TransferEvent): void {
     position.tokenId = event.params.id
     position.origin = event.transaction.from.toHexString()
     position.createdAtTimestamp = event.block.timestamp
+  }
+
+  // Link with pool using LiquidityPosition if available
+  if (!position.pool) {
+    const liquidityPosition = LiquidityPosition.load(tokenId)
+    if (liquidityPosition !== null) {
+      position.pool = liquidityPosition.pool
+      // Update the LiquidityPosition to link back to this Position
+      liquidityPosition.position = position.id
+      liquidityPosition.save()
+      log.info('Linked Position {} to Pool {} via LiquidityPosition', [tokenId, liquidityPosition.pool])
+    }
   }
 
   position.owner = to.toHexString()

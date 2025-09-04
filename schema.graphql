@@ -249,6 +249,8 @@ type ModifyLiquidity @entity(immutable: true) {
   tickUpper: BigInt!
   # index within the txn
   logIndex: BigInt
+  # position this liquidity modification belongs to (if from PositionManager)
+  position: Position
 }
 
 # Data accumulated and condensed into day stats for all of Uniswap
@@ -424,12 +426,51 @@ type Position @entity(immutable: false) {
   origin: String!
   # created time
   createdAtTimestamp: BigInt!
+  # pool this position belongs to
+  pool: Pool
   # subscribe events
   subscriptions: [Subscribe!]! @derivedFrom(field: "position")
   # unsubscription events
   unsubscriptions: [Unsubscribe!]! @derivedFrom(field: "position")
   # transfer events
   transfers: [Transfer!]! @derivedFrom(field: "position")
+  # liquidity modifications for this position
+  modifyLiquidities: [ModifyLiquidity!]! @derivedFrom(field: "position")
+}
+
+type PositionSnapshot @entity(immutable: false) {
+  # Format: tokenId-blockNumber-logIndex
+  id: ID!
+  # the position entity
+  position: Position!
+  # block number when snapshot was taken
+  blockNumber: BigInt!
+  # timestamp when snapshot was taken  
+  timestamp: BigInt!
+  # pool at time of snapshot
+  pool: Pool!
+  # tickLower at time of snapshot
+  tickLower: BigInt!
+  # tickUpper at time of snapshot
+  tickUpper: BigInt!
+  # liquidity at time of snapshot
+  liquidity: BigInt!
+}
+
+# Maps transaction hash to position details for linking
+type PositionManager @entity(immutable: false) {
+  # transaction hash
+  id: ID!
+  # pool id
+  poolId: String!
+  # tick lower
+  tickLower: BigInt!
+  # tick upper  
+  tickUpper: BigInt!
+  # liquidity
+  liquidity: BigInt!
+  # block number
+  blockNumber: BigInt!
 }
 
 type Subscribe @entity(immutable: true) {
@@ -515,4 +556,19 @@ type ArrakisHook @entity(immutable: false) {
   createdAtTimestamp: BigInt!
   # block number of creation
   createdAtBlockNumber: BigInt!
+}
+
+type LiquidityPosition @entity(immutable: false) {
+  # tokenId
+  id: ID!
+  # tokenId
+  tokenId: BigInt!
+  # pointer to position (if exists)
+  position: Position
+  # pointer to pool
+  pool: Pool!
+  # tick lower
+  tickLower: BigInt!
+  # tick upper
+  tickUpper: BigInt!
 }

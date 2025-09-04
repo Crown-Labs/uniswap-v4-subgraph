@@ -14,7 +14,10 @@
     "test": "graph test -d",
     "test:no-tty": "docker run -i --rm --mount type=bind,source=$INIT_CWD,target=/matchstick matchstick",
     "prepare": "husky install",
-    "generate-subgraph": "ts-node scripts/generate-subgraph.ts"
+    "generate-subgraph": "ts-node scripts/generate-subgraph.ts",
+    "deploy:local": "graph deploy --node http://localhost:8020 --ipfs http://localhost:5001 -l 0.0.1 --network arbitrum-one v4-subgraph",
+    "create:local": "graph create --node http://localhost:8020 v4-subgraph",
+    "remove:local": "graph remove --node http://localhost:8020 v4-subgraph"
   },
   "devDependencies": {
     "@graphprotocol/graph-cli": "^0.64.1",
