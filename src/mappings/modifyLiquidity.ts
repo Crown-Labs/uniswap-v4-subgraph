@@ -1,10 +1,10 @@
-import { BigInt, log } from '@graphprotocol/graph-ts'
+import { Address, BigInt, log } from '@graphprotocol/graph-ts'
 
 import { ModifyLiquidity as ModifyLiquidityEvent } from '../types/PoolManager/PoolManager'
-import { Bundle, ModifyLiquidity, Pool, PoolManager, Tick, Token } from '../types/schema'
+import { Bundle, LiquidityPosition, ModifyLiquidity, Pool, PoolManager, Position, Tick, Token } from '../types/schema'
 import { getSubgraphConfig, SubgraphConfig } from '../utils/chains'
 import { ONE_BI } from '../utils/constants'
-import { convertTokenToDecimal, loadTransaction } from '../utils/index'
+import { convertTokenToDecimal, hexToBigInt, loadTransaction } from '../utils/index'
 import {
   updatePoolDayData,
   updatePoolHourData,
@@ -124,6 +124,39 @@ export function handleModifyLiquidityHelper(
     modifyLiquidity.tickLower = BigInt.fromI32(event.params.tickLower)
     modifyLiquidity.tickUpper = BigInt.fromI32(event.params.tickUpper)
     modifyLiquidity.logIndex = event.logIndex
+
+    // Create LiquidityPosition if this is from PositionManager
+    const sender = event.params.sender
+    const pmAddress = Address.fromString('0xd88F38F930b7952f2DB2432Cb002E7abbF3dD869')
+
+    if (sender.equals(pmAddress)) {
+      // Extract tokenId from salt parameter (like the reference project)
+      const salt = event.params.salt.toHexString()
+      const tokenId = hexToBigInt(salt).toString()
+
+      log.info('Creating LiquidityPosition for tokenId: {}, pool: {}', [tokenId, pool.id])
+
+      let liquidityPosition = LiquidityPosition.load(tokenId)
+      if (liquidityPosition === null) {
+        liquidityPosition = new LiquidityPosition(tokenId)
+        liquidityPosition.tokenId = BigInt.fromString(tokenId)
+        liquidityPosition.pool = pool.id
+        liquidityPosition.tickLower = modifyLiquidity.tickLower
+        liquidityPosition.tickUpper = modifyLiquidity.tickUpper
+
+        // Link to Position if it exists
+        const position = Position.load(tokenId)
+        if (position !== null) {
+          liquidityPosition.position = position.id
+          // Also set the pool on the position directly
+          position.pool = pool.id
+          position.save()
+          log.info('Linked Position {} to pool {}', [tokenId, pool.id])
+        }
+
+        liquidityPosition.save()
+      }
+    }
 
     // tick entities
     const lowerTickIdx = event.params.tickLower
